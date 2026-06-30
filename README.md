@@ -1,5 +1,7 @@
 # codex-flake
 
+[![FlakeHub](https://img.shields.io/endpoint?url=https://flakehub.com/f/ErikBPF/codex-flake/badge)](https://flakehub.com/flake/ErikBPF/codex-flake)
+
 Home Manager module for global OpenAI Codex profile files.
 
 ## What it manages
@@ -13,6 +15,16 @@ It does not manage auth, logs, sessions, history, shell snapshots, cache, or
 state databases.
 
 ## Usage
+
+FlakeHub input:
+
+```nix
+{
+  inputs.codex-flake.url = "https://flakehub.com/f/ErikBPF/codex-flake/*";
+}
+```
+
+GitHub input:
 
 ```nix
 {
