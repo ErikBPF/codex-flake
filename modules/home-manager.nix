@@ -81,10 +81,27 @@
     then cavemanText
     else "";
 
+  reducedRtkText = defaultRtkText;
+
+  generatedRtkFile =
+    if cfg.rtk.package == null
+    then throw "programs.codex-profile.rtk.source = \"generated\" requires programs.codex-profile.rtk.package"
+    else
+      pkgs.runCommand "codex-rtk-generated.md" {
+        nativeBuildInputs = [cfg.rtk.package];
+      } ''
+        rtk init -g --codex --show > "$out"
+      '';
+
   rtkText =
     if cfg.rtk.text != null
     then cfg.rtk.text
-    else defaultRtkText;
+    else reducedRtkText;
+
+  rtkFile =
+    if cfg.rtk.source == "generated" && cfg.rtk.text == null
+    then generatedRtkFile
+    else pkgs.writeText "codex-rtk.md" rtkText;
 
   agentsText =
     lib.concatStringsSep "\n\n"
@@ -94,6 +111,20 @@
       (optionalString cfg.style.enable styleText)
       cfg.agents.extraText
     ]);
+
+  agentsFile =
+    if cfg.rtk.source == "generated" && cfg.rtk.text == null && cfg.rtk.inline
+    then
+      pkgs.runCommand "codex-agents-generated.md" {} ''
+        cat ${pkgs.writeText "codex-agents-preamble.md" cfg.agents.preamble} > "$out"
+        printf '\n\n' >> "$out"
+        cat ${generatedRtkFile} >> "$out"
+        printf '\n\n' >> "$out"
+        cat ${pkgs.writeText "codex-agents-style.md" styleText} >> "$out"
+        printf '\n\n' >> "$out"
+        cat ${pkgs.writeText "codex-agents-extra.md" cfg.agents.extraText} >> "$out"
+      ''
+    else pkgs.writeText "codex-agents.md" agentsText;
 in {
   options.programs.codex-profile = {
     enable = mkEnableOption "Codex global profile files";
@@ -101,7 +132,7 @@ in {
     package = {
       enable = mkOption {
         type = types.bool;
-        default = true;
+        default = false;
         description = "Install the Codex package into `home.packages`.";
       };
 
@@ -148,6 +179,22 @@ in {
         type = types.bool;
         default = true;
         description = "Inline RTK guidance into `AGENTS.md` instead of relying on `@RTK.md` includes.";
+      };
+
+      source = mkOption {
+        type = types.enum ["reduced" "generated"];
+        default = "reduced";
+        description = ''
+          RTK guidance source. `reduced` uses the built-in Codex-focused
+          guidance. `generated` runs `rtk init -g --codex --show` from
+          `programs.codex-profile.rtk.package`.
+        '';
+      };
+
+      package = mkOption {
+        type = types.nullOr types.package;
+        default = null;
+        description = "RTK package used when `rtk.source = \"generated\"`.";
       };
 
       text = mkOption {
@@ -214,11 +261,11 @@ in {
     home.packages = optional cfg.package.enable cfg.package.package;
 
     home.file.".codex/AGENTS.md" = mkIf cfg.agents.enable {
-      text = agentsText;
+      source = agentsFile;
     };
 
     home.file.".codex/RTK.md" = mkIf (cfg.rtk.enable && cfg.rtkFile.enable) {
-      text = rtkText;
+      source = rtkFile;
     };
 
     home.file.".codex/config.toml" = mkIf cfg.configFile.enable {

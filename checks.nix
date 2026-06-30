@@ -51,8 +51,34 @@
     {
       programs.codex-profile = {
         enable = true;
-        package.enable = false;
         rtk.enable = true;
+      };
+    }
+  ];
+
+  fakeRtk = pkgs.writeShellApplication {
+    name = "rtk";
+    text = ''
+      if [ "$*" = "init -g --codex --show" ]; then
+        printf '%s\n' "# Generated RTK"
+        printf '%s\n' "Use generated Codex RTK guidance."
+        exit 0
+      fi
+      echo "unexpected args: $*" >&2
+      exit 2
+    '';
+  };
+
+  generated = hmConfig [
+    {
+      programs.codex-profile = {
+        enable = true;
+        package.enable = false;
+        rtk = {
+          enable = true;
+          source = "generated";
+          package = fakeRtk;
+        };
       };
     }
   ];
@@ -82,6 +108,21 @@ in {
     pkgs.runCommand "codex-profile-config-default-off" {} ''
       touch "$out"
     '';
+
+  package-default-off = assert !(builtins.any (pkg: builtins.toString pkg == builtins.toString pkgs.codex) withoutConfig.config.home.packages);
+    pkgs.runCommand "codex-profile-package-default-off" {} ''
+      touch "$out"
+    '';
+
+  generated-rtk = pkgs.runCommand "codex-profile-generated-rtk" {} ''
+    agents='${generated.config.home.file.".codex/AGENTS.md".source}'
+    rtk='${generated.config.home.file.".codex/RTK.md".source}'
+
+    grep -q "Generated RTK" "$agents"
+    grep -q "Generated RTK" "$rtk"
+
+    touch "$out"
+  '';
 
   lint = pkgs.runCommand "codex-profile-lint" {} ''
     cd ${self}

@@ -9,7 +9,7 @@ Home Manager module for global OpenAI Codex profile files.
 - `~/.codex/AGENTS.md`
 - `~/.codex/RTK.md` when RTK guidance is enabled
 - `~/.codex/config.toml` only when explicitly enabled
-- `pkgs.codex` in `home.packages` by default
+- `pkgs.codex` in `home.packages` only when explicitly enabled
 
 It does not manage auth, logs, sessions, history, shell snapshots, cache, or
 state databases.
@@ -42,6 +42,7 @@ GitHub input:
             enable = true;
             rtk.enable = true;
             style.enable = true;
+            package.enable = true;
           };
         }
       ];
@@ -56,6 +57,17 @@ Codex loads global `~/.codex/AGENTS.md`, but observed behavior did not expand an
 `@/home/user/.codex/RTK.md` include into model context. RTK guidance is therefore
 inlined into `AGENTS.md` when enabled. `RTK.md` is still rendered as a reference
 file for humans and external tooling.
+
+By default the module uses reduced Codex-focused RTK guidance. To generate RTK
+guidance from RTK itself, provide an RTK package and opt in:
+
+```nix
+programs.codex-profile.rtk = {
+  enable = true;
+  source = "generated";
+  package = yourRtkPackage;
+};
+```
 
 ## Config policy
 
