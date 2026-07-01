@@ -250,7 +250,7 @@ in {
       };
 
       settings = mkOption {
-        type = tomlFormat.type;
+        inherit (tomlFormat) type;
         default = {};
         description = "TOML settings rendered to `~/.codex/config.toml` when enabled.";
       };
@@ -258,18 +258,22 @@ in {
   };
 
   config = mkIf cfg.enable {
-    home.packages = optional cfg.package.enable cfg.package.package;
+    home = {
+      packages = optional cfg.package.enable cfg.package.package;
 
-    home.file.".codex/AGENTS.md" = mkIf cfg.agents.enable {
-      source = agentsFile;
-    };
+      file = {
+        ".codex/AGENTS.md" = mkIf cfg.agents.enable {
+          source = agentsFile;
+        };
 
-    home.file.".codex/RTK.md" = mkIf (cfg.rtk.enable && cfg.rtkFile.enable) {
-      source = rtkFile;
-    };
+        ".codex/RTK.md" = mkIf (cfg.rtk.enable && cfg.rtkFile.enable) {
+          source = rtkFile;
+        };
 
-    home.file.".codex/config.toml" = mkIf cfg.configFile.enable {
-      source = tomlFormat.generate "codex-config.toml" cfg.configFile.settings;
+        ".codex/config.toml" = mkIf cfg.configFile.enable {
+          source = tomlFormat.generate "codex-config.toml" cfg.configFile.settings;
+        };
+      };
     };
   };
 }

@@ -10,6 +10,7 @@ Home Manager module for global OpenAI Codex profile files.
 - `~/.codex/RTK.md` when RTK guidance is enabled
 - `~/.codex/config.toml` only when explicitly enabled
 - `pkgs.codex` in `home.packages` only when explicitly enabled
+- optionally, this flake's faster-moving `codex` package
 
 It does not manage auth, logs, sessions, history, shell snapshots, cache, or
 state databases.
@@ -50,6 +51,39 @@ GitHub input:
   };
 }
 ```
+
+## Package update lanes
+
+The default module is conservative: `programs.codex-profile.package.package`
+defaults to the consumer's `pkgs.codex`.
+
+For a faster Codex package lane, import the package-aware module:
+
+```nix
+{
+  imports = [codex-flake.homeManagerModules.withPackage];
+
+  programs.codex-profile = {
+    enable = true;
+    package.enable = true;
+  };
+}
+```
+
+That package follows upstream `openai/codex` Rust releases and is updated by:
+
+```bash
+nix run .#update-check
+nix run .#update
+```
+
+Trust modes:
+
+- **Profile-only:** use the default module and your own `pkgs.codex`.
+- **Rolling package:** use `homeManagerModules.withPackage` with the FlakeHub
+  wildcard input.
+- **Pinned package:** pin this flake to a commit or exact FlakeHub release before
+  importing `withPackage`.
 
 ## Why RTK is inline by default
 
