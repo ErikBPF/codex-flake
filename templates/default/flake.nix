@@ -27,9 +27,11 @@
       modules = [
         codex-flake.homeManagerModules.default
         {
-          home.username = "me";
-          home.homeDirectory = "/home/me";
-          home.stateVersion = "25.11";
+          home = {
+            username = "me";
+            homeDirectory = "/home/me";
+            stateVersion = "25.11";
+          };
 
           programs.codex-profile = {
             enable = true;

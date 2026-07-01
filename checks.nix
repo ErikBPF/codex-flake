@@ -11,9 +11,11 @@
         [
           self.homeManagerModules.default
           {
-            home.username = "codex-test";
-            home.homeDirectory = "/home/codex-test";
-            home.stateVersion = "25.11";
+            home = {
+              username = "codex-test";
+              homeDirectory = "/home/codex-test";
+              stateVersion = "25.11";
+            };
           }
         ]
         ++ extraModules;
@@ -55,6 +57,62 @@
       };
     }
   ];
+
+  withoutRtkFile = hmConfig [
+    {
+      programs.codex-profile = {
+        enable = true;
+        rtk.enable = false;
+      };
+    }
+  ];
+
+  withoutAgents = hmConfig [
+    {
+      programs.codex-profile = {
+        enable = true;
+        agents.enable = false;
+        rtk.enable = true;
+      };
+    }
+  ];
+
+  fakeCodex = pkgs.writeShellApplication {
+    name = "codex";
+    text = ''
+      printf '%s\n' "codex 0.0.0-test"
+    '';
+  };
+
+  withFakePackage = hmConfig [
+    {
+      programs.codex-profile = {
+        enable = true;
+        package = {
+          enable = true;
+          package = fakeCodex;
+        };
+      };
+    }
+  ];
+
+  withSelfPackage = inputs.home-manager.lib.homeManagerConfiguration {
+    inherit pkgs;
+    modules = [
+      self.homeManagerModules.withPackage
+      {
+        home = {
+          username = "codex-test";
+          homeDirectory = "/home/codex-test";
+          stateVersion = "25.11";
+        };
+        programs.codex-profile = {
+          enable = true;
+          package.enable = true;
+        };
+      }
+    ];
+  };
 
   fakeRtk = pkgs.writeShellApplication {
     name = "rtk";
@@ -114,6 +172,31 @@ in {
       touch "$out"
     '';
 
+  rtk-file-off = assert !(builtins.hasAttr ".codex/RTK.md" withoutRtkFile.config.home.file);
+    pkgs.runCommand "codex-profile-rtk-file-off" {} ''
+      touch "$out"
+    '';
+
+  agents-file-off = assert !(builtins.hasAttr ".codex/AGENTS.md" withoutAgents.config.home.file);
+    pkgs.runCommand "codex-profile-agents-file-off" {} ''
+      touch "$out"
+    '';
+
+  package-opt-in = assert builtins.any (pkg: builtins.toString pkg == builtins.toString fakeCodex) withFakePackage.config.home.packages;
+    pkgs.runCommand "codex-profile-package-opt-in" {} ''
+      touch "$out"
+    '';
+
+  self-package-module = assert builtins.any (pkg: builtins.toString pkg == builtins.toString self.packages.${system}.codex) withSelfPackage.config.home.packages;
+    pkgs.runCommand "codex-profile-self-package-module" {} ''
+      touch "$out"
+    '';
+
+  codex-version = pkgs.runCommand "codex-version" {} ''
+    ${self.packages.${system}.codex}/bin/codex --version | grep -F '${self.packages.${system}.codex.version}'
+    touch "$out"
+  '';
+
   generated-rtk = pkgs.runCommand "codex-profile-generated-rtk" {} ''
     agents='${generated.config.home.file.".codex/AGENTS.md".source}'
     rtk='${generated.config.home.file.".codex/RTK.md".source}'
@@ -127,8 +210,8 @@ in {
   lint = pkgs.runCommand "codex-profile-lint" {} ''
     cd ${self}
     ${pkgs.alejandra}/bin/alejandra --check .
-    ${pkgs.statix}/bin/statix check . -i '.direnv/*' 2>&1 || true
-    ${pkgs.deadnix}/bin/deadnix . 2>&1 || true
+    ${pkgs.statix}/bin/statix check . -i '.direnv/*'
+    ${pkgs.deadnix}/bin/deadnix --fail .
     touch "$out"
   '';
 }
