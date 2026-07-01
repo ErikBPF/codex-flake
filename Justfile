@@ -17,7 +17,7 @@ update-to VERSION:
     ./scripts/update-codex.sh --version {{VERSION}}
 
 fmt:
-    nix fmt
+    nix fmt -- .
 
 fmt-check:
     alejandra --check .

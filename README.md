@@ -81,6 +81,9 @@ The fast package lane currently supports `x86_64-linux` only and checks for
 updates daily. ARM and Darwin can be added later as advisory builds once runner
 availability, cache hit rate, and build time are known.
 
+TODO: check whether CI cache/storage is cheap enough to make the full Codex
+package build a required publishing gate.
+
 Trust modes:
 
 - **Profile-only:** use the default module and your own `pkgs.codex`.

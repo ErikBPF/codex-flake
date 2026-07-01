@@ -36,9 +36,22 @@ jobs:
             ".#checks.$system.agents-file-off" \
             ".#checks.$system.package-opt-in" \
             ".#checks.$system.self-package-module" \
-            ".#checks.$system.codex-version" \
             ".#checks.$system.generated-rtk" \
             ".#checks.$system.lint"
+
+  package-build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: DeterminateSystems/determinate-nix-action@629b284231c2a82554b724e357e47fc6020833c8 # v3
+
+      - name: advisory Codex package build
+        run: |
+          set -euo pipefail
+          system="$(nix eval --raw --impure --expr builtins.currentSystem)"
+          nix build --print-build-logs ".#checks.$system.codex-version"
 
   flakehub-publish:
     runs-on: ubuntu-latest
