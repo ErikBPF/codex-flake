@@ -129,6 +129,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
     changelog = "https://raw.githubusercontent.com/openai/codex/refs/tags/rust-v${finalAttrs.version}/CHANGELOG.md";
     license = lib.licenses.asl20;
     mainProgram = "codex";
-    platforms = lib.platforms.unix;
+    platforms = ["x86_64-linux"];
   };
 })

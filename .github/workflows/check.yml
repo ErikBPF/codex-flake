@@ -36,6 +36,7 @@ jobs:
             ".#checks.$system.agents-file-off" \
             ".#checks.$system.package-opt-in" \
             ".#checks.$system.self-package-module" \
+            ".#checks.$system.codex-version" \
             ".#checks.$system.generated-rtk" \
             ".#checks.$system.lint"
 

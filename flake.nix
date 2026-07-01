@@ -21,7 +21,7 @@
     ...
   }:
     flake-parts.lib.mkFlake {inherit inputs;} {
-      systems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
+      systems = ["x86_64-linux"];
 
       perSystem = {
         pkgs,
@@ -99,7 +99,7 @@
         };
 
         overlays.default = _final: prev: {
-          codex-latest = self.packages.${prev.system}.codex;
+          codex-latest = self.packages.${prev.stdenv.hostPlatform.system}.codex;
         };
 
         templates.default = {
