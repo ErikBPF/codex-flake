@@ -56,7 +56,9 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/update-codex.sh --version "${{ steps.check.outputs.latest }}"
+        run: |
+          nix shell nixpkgs#nix-update --command \
+            ./scripts/update-codex.sh --version "${{ steps.check.outputs.latest }}"
 
       - name: Create pull request
         if: steps.check.outputs.update_needed == 'true'
