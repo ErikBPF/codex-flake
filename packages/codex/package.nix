@@ -1,134 +1,93 @@
+# Official prebuilt Codex binaries from OpenAI's GitHub releases (the same
+# artifacts the @openai/codex npm installer downloads; each has a .sigstore
+# bundle upstream). Linux binaries are static musl — no patching needed.
+# scripts/update-codex.sh bumps `version` and the `hashes` table; keep the
+# one-line-per-platform format.
 {
   lib,
-  stdenv,
-  callPackage,
-  rustPlatform,
-  fetchFromGitHub,
-  installShellFiles,
+  stdenvNoCC,
+  fetchurl,
   bubblewrap,
-  clang,
-  cmake,
-  gitMinimal,
-  libcap,
-  libclang,
-  librusty_v8 ?
-    callPackage ./librusty_v8.nix {
-      inherit (callPackage ./fetchers.nix {}) fetchLibrustyV8;
-    },
-  livekit-libwebrtc,
-  lld,
+  installShellFiles,
   makeBinaryWrapper,
-  nix-update-script,
-  pkg-config,
-  openssl,
   ripgrep,
   versionCheckHook,
-  installShellCompletions ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
-}:
-rustPlatform.buildRustPackage (finalAttrs: {
-  pname = "codex";
-  version = "0.142.4";
+  installShellCompletions ? stdenvNoCC.buildPlatform.canExecute stdenvNoCC.hostPlatform,
+}: let
+  version = "0.142.5";
 
-  src = fetchFromGitHub {
-    owner = "openai";
-    repo = "codex";
-    tag = "rust-v${finalAttrs.version}";
-    hash = "sha256-cYkdLy0+KMjcx0k7IDACsiTK3ZZks6cmwbeDMheN6WY=";
+  hashes = {
+    x86_64-linux = "sha256-y5M+w8thv0tfyI7s9eYUmCn6phclNbbvCvsBVL60qrg=";
+    aarch64-linux = "sha256-sYx1xJZFkY+uI766CrQcBfB5QWAVEKJFG6l/5RlXPDg=";
+    x86_64-darwin = "sha256-OWmjMytf4/Hfar0jcU5tkBFgRHUk7reOoSKRq8h7OWA=";
+    aarch64-darwin = "sha256-cVaxmWJzXJz7VVzde6voxA55dogfhxK3gRmSGdLjpwc=";
   };
 
-  sourceRoot = "${finalAttrs.src.name}/codex-rs";
+  triples = {
+    x86_64-linux = "x86_64-unknown-linux-musl";
+    aarch64-linux = "aarch64-unknown-linux-musl";
+    x86_64-darwin = "x86_64-apple-darwin";
+    aarch64-darwin = "aarch64-apple-darwin";
+  };
 
-  cargoHash = "sha256-1gDiCB3Nf/0aIm+EoL3g9C0xbCi3cv6TfH5VytjJpOY=";
+  inherit (stdenvNoCC.hostPlatform) system;
+  triple = triples.${system} or (throw "codex: unsupported system ${system}");
+in
+  stdenvNoCC.mkDerivation {
+    pname = "codex";
+    inherit version;
 
-  __structuredAttrs = true;
+    src = fetchurl {
+      url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-${triple}.tar.gz";
+      hash = hashes.${system} or (throw "codex: no hash for ${system}");
+    };
 
-  cargoBuildFlags = [
-    "--package"
-    "codex-cli"
-  ];
-  cargoCheckFlags = [
-    "--package"
-    "codex-cli"
-  ];
+    # The tarball contains a single file: the codex-<triple> binary.
+    sourceRoot = ".";
 
-  postPatch = ''
-    substituteInPlace $cargoDepsCopy/*/webrtc-sys-*/build.rs \
-      --replace-fail "cargo:rustc-link-lib=static=webrtc" "cargo:rustc-link-lib=dylib=webrtc"
-    substituteInPlace Cargo.toml \
-      --replace-fail 'lto = "thin"' "" \
-      --replace-fail 'codegen-units = 4' ""
-  '';
-
-  nativeBuildInputs = [
-    clang
-    cmake
-    gitMinimal
-    installShellFiles
-    makeBinaryWrapper
-    pkg-config
-  ];
-
-  buildInputs =
-    [
-      libclang
-      openssl
-    ]
-    ++ lib.optionals stdenv.hostPlatform.isLinux [
-      libcap
+    nativeBuildInputs = [
+      installShellFiles
+      makeBinaryWrapper
     ];
 
-  env =
-    {
-      LIBCLANG_PATH = "${lib.getLib libclang}/lib";
-      LK_CUSTOM_WEBRTC = lib.getDev livekit-libwebrtc;
-      NIX_CFLAGS_COMPILE = toString (
-        lib.optionals stdenv.cc.isGNU [
-          "-Wno-error=stringop-overflow"
-        ]
-        ++ lib.optionals stdenv.cc.isClang [
-          "-Wno-error=character-conversion"
-        ]
-      );
-      RUSTY_V8_ARCHIVE = librusty_v8;
-    }
-    // lib.optionalAttrs stdenv.hostPlatform.isDarwin {
-      NIX_CFLAGS_LINK = "-fuse-ld=${lib.getExe' lld "ld64.lld"}";
-    };
+    dontConfigure = true;
+    dontBuild = true;
+    # Ship the official bytes as released.
+    dontStrip = true;
 
-  doCheck = false;
+    installPhase = ''
+      runHook preInstall
 
-  postInstall = lib.optionalString installShellCompletions ''
-    installShellCompletion --cmd codex \
-      --bash <($out/bin/codex completion bash) \
-      --fish <($out/bin/codex completion fish) \
-      --zsh <($out/bin/codex completion zsh)
-  '';
+      install -Dm755 codex-${triple} $out/bin/codex
+      wrapProgram $out/bin/codex --prefix PATH : ${
+        lib.makeBinPath ([ripgrep] ++ lib.optionals stdenvNoCC.hostPlatform.isLinux [bubblewrap])
+      }
 
-  postFixup = ''
-    wrapProgram $out/bin/codex --prefix PATH : ${
-      lib.makeBinPath ([ripgrep] ++ lib.optionals stdenv.hostPlatform.isLinux [bubblewrap])
-    }
-  '';
+      runHook postInstall
+    '';
 
-  doInstallCheck = true;
-  nativeInstallCheckInputs = [versionCheckHook];
+    postInstall = lib.optionalString installShellCompletions ''
+      installShellCompletion --cmd codex \
+        --bash <($out/bin/codex completion bash) \
+        --fish <($out/bin/codex completion fish) \
+        --zsh <($out/bin/codex completion zsh)
+    '';
 
-  passthru = {
-    updateScript = nix-update-script {
-      extraArgs = [
-        "--use-github-releases"
-        "--version-regex"
-        "^rust-v(\\d+\\.\\d+\\.\\d+)$"
+    doInstallCheck = true;
+    nativeInstallCheckInputs = [versionCheckHook];
+
+    meta = {
+      description = "Lightweight coding agent that runs in your terminal";
+      homepage = "https://github.com/openai/codex";
+      changelog = "https://raw.githubusercontent.com/openai/codex/refs/tags/rust-v${version}/CHANGELOG.md";
+      license = lib.licenses.asl20;
+      sourceProvenance = with lib.sourceTypes; [binaryNativeCode];
+      mainProgram = "codex";
+      platforms = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
     };
-  };
-
-  meta = {
-    description = "Lightweight coding agent that runs in your terminal";
-    homepage = "https://github.com/openai/codex";
-    changelog = "https://raw.githubusercontent.com/openai/codex/refs/tags/rust-v${finalAttrs.version}/CHANGELOG.md";
-    license = lib.licenses.asl20;
-    mainProgram = "codex";
-    platforms = ["x86_64-linux"];
-  };
-})
+  }

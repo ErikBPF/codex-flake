@@ -39,15 +39,17 @@ jobs:
             ".#checks.$system.generated-rtk" \
             ".#checks.$system.lint"
 
+  # Required, not advisory: the package is a prebuilt-binary fetch (seconds),
+  # and auto-merged bump PRs must prove it installs and reports the right
+  # version before they can land.
   package-build:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - uses: DeterminateSystems/determinate-nix-action@629b284231c2a82554b724e357e47fc6020833c8 # v3
 
-      - name: advisory Codex package build
+      - name: Build and smoke-test the Codex package
         run: |
           set -euo pipefail
           system="$(nix eval --raw --impure --expr builtins.currentSystem)"
@@ -55,7 +57,7 @@ jobs:
 
   flakehub-publish:
     runs-on: ubuntu-latest
-    needs: check
+    needs: [check, package-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       id-token: write

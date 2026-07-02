@@ -70,25 +70,28 @@ For a faster Codex package lane, import the package-aware module:
 }
 ```
 
-That package follows upstream `openai/codex` Rust releases and is updated by:
+That package installs the **official prebuilt binaries from OpenAI's GitHub
+releases** — the same artifacts the `@openai/codex` npm installer downloads
+(each carries a `.sigstore` bundle upstream). Nothing is compiled here; the
+Linux binaries are static musl. Supported: `x86_64-linux`, `aarch64-linux`,
+`x86_64-darwin`, `aarch64-darwin`. Updated by:
 
 ```bash
 nix run .#update-check
 nix run .#update
 ```
 
-The fast package lane currently supports `x86_64-linux` only and checks for
-updates daily. ARM and Darwin can be added later as advisory builds once runner
-availability, cache hit rate, and build time are known.
-
-TODO: check whether CI cache/storage is cheap enough to make the full Codex
-package build a required publishing gate.
+The updater checks hourly in CI; a bump PR pins the new version plus all four
+platform hashes and auto-merges only after the required checks — including
+the package install + version smoke — pass.
 
 Trust modes:
 
-- **Profile-only:** use the default module and your own `pkgs.codex`.
+- **Profile-only:** use the default module and your own `pkgs.codex`
+  (nixpkgs builds Codex from source — that is the from-source lane).
 - **Rolling package:** use `homeManagerModules.withPackage` with the FlakeHub
-  wildcard input.
+  wildcard input; you are trusting OpenAI's official release artifacts and
+  this repo's SHA-pinned update workflow.
 - **Pinned package:** pin this flake to a commit or exact FlakeHub release before
   importing `withPackage`.
 

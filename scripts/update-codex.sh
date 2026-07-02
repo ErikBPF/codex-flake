@@ -96,16 +96,28 @@ main() {
     exit 1
   fi
 
-  # Only the mutation path needs nix-update; --check must work on a runner
-  # that has nothing but nix (observed CI failure 2026-07-02).
-  need nix-update
-
   TMPDIR_UPDATE="$(mktemp -d)"
   export TMPDIR_UPDATE
   trap restore_on_failure EXIT
   cp packages/codex/package.nix "$TMPDIR_UPDATE/package.nix"
 
-  nix-update codex --version "$latest" --flake --override-filename packages/codex/package.nix
+  sed -i "s/^  version = \"[^\"]*\";/  version = \"${latest}\";/" packages/codex/package.nix
+
+  # Prefetch each platform's official release tarball and patch its hash.
+  for entry in \
+    "x86_64-linux x86_64-unknown-linux-musl" \
+    "aarch64-linux aarch64-unknown-linux-musl" \
+    "x86_64-darwin x86_64-apple-darwin" \
+    "aarch64-darwin aarch64-apple-darwin"; do
+    set -- $entry
+    sys="$1"
+    triple="$2"
+    asset_url="https://github.com/${UPSTREAM_REPO}/releases/download/rust-v${latest}/codex-${triple}.tar.gz"
+    log "prefetching $sys ($triple)..."
+    hash="$(nix store prefetch-file --json "$asset_url" | jq -r .hash)"
+    [ -n "$hash" ] && [ "$hash" != "null" ] || die "prefetch failed for $sys"
+    sed -i "s|^    ${sys} = \"sha256-[^\"]*\";|    ${sys} = \"${hash}\";|" packages/codex/package.nix
+  done
   nix build .#codex --no-link --print-build-logs
   nix run .#codex -- --version | grep -F "$latest"
 
