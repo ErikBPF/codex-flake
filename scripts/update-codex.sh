@@ -2,7 +2,13 @@
 set -euo pipefail
 
 readonly UPSTREAM_REPO="openai/codex"
-readonly UPSTREAM_API="https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest"
+readonly UPSTREAM_RELEASES_API="https://api.github.com/repos/${UPSTREAM_REPO}/releases?per_page=50"
+readonly REQUIRED_ASSETS='[
+  "codex-x86_64-unknown-linux-musl.tar.gz",
+  "codex-aarch64-unknown-linux-musl.tar.gz",
+  "codex-x86_64-apple-darwin.tar.gz",
+  "codex-aarch64-apple-darwin.tar.gz"
+]'
 
 log() { printf '[codex-update] %s\n' "$*" >&2; }
 die() { printf '[codex-update] ERROR: %s\n' "$*" >&2; exit 2; }
@@ -26,22 +32,31 @@ current_version() {
   nix eval --raw .#codex.version
 }
 
-latest_release_json() {
+releases_json() {
   if [ -n "${GH_TOKEN:-}" ]; then
-    gh api "repos/${UPSTREAM_REPO}/releases/latest"
+    gh api "repos/${UPSTREAM_REPO}/releases?per_page=50"
   elif command -v gh >/dev/null 2>&1; then
-    gh api "repos/${UPSTREAM_REPO}/releases/latest" 2>/dev/null || curl -fsSL "$UPSTREAM_API"
+    gh api "repos/${UPSTREAM_REPO}/releases?per_page=50" 2>/dev/null || curl -fsSL "$UPSTREAM_RELEASES_API"
   else
-    curl -fsSL "$UPSTREAM_API"
+    curl -fsSL "$UPSTREAM_RELEASES_API"
   fi
 }
 
-latest_version() {
-  latest_release_json | jq -r '.tag_name' | sed -n 's/^rust-v//p'
-}
-
-release_url() {
-  latest_release_json | jq -r '.html_url'
+latest_release_json() {
+  releases_json | jq -cer --argjson required "$REQUIRED_ASSETS" '
+    map(select(
+      (.draft | not)
+      and (.prerelease | not)
+      and (.tag_name | test("^rust-v[0-9]+\\.[0-9]+\\.[0-9]+$"))
+      and (
+        ([.assets[].name] as $assets
+          | all($required[]; . as $name | $assets | index($name)))
+      )
+    ))
+    | sort_by(.published_at // .created_at)
+    | last
+    // error("no stable rust-v release with all required Codex assets found")
+  '
 }
 
 restore_on_failure() {
@@ -70,14 +85,15 @@ main() {
   need jq
   need cp
 
-  local current latest url
+  local current latest url latest_json
   current="$(current_version)"
   if [ -n "$target" ]; then
     latest="$target"
     url="https://github.com/${UPSTREAM_REPO}/releases/tag/rust-v${target}"
   else
-    latest="$(latest_version)"
-    url="$(release_url)"
+    latest_json="$(latest_release_json)"
+    latest="$(printf '%s\n' "$latest_json" | jq -r '.tag_name' | sed -n 's/^rust-v//p')"
+    url="$(printf '%s\n' "$latest_json" | jq -r '.html_url')"
   fi
 
   [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "latest version is malformed: $latest"
