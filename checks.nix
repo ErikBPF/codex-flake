@@ -169,10 +169,19 @@
   mockUpdateNix = pkgs.writeShellApplication {
     name = "nix";
     text = ''
+      if [ -n "''${NIX_CALLS:-}" ]; then
+        printf '%s\n' "$*" >> "$NIX_CALLS"
+      fi
       if [ "$*" = "eval --raw .#codex.version" ]; then
         printf '%s\n' "0.1.0"
         exit 0
       fi
+      case "$*" in
+        store\ prefetch-file\ --json\ *)
+          printf '%s\n' '{"hash":"sha256-test"}'
+          exit 0
+          ;;
+      esac
       printf 'unexpected nix args: %s\n' "$*" >&2
       exit 2
     '';
@@ -271,6 +280,20 @@ in {
       printf '%s\n' "$output" | grep -F "update available: 0.1.0 -> 0.144.1"
       touch "$out"
     '';
+
+  updater-mutation-only = pkgs.runCommand "codex-updater-mutation-only" {} ''
+    cp -r ${self} source
+    chmod -R u+w source
+    cd source
+    export NIX_CALLS="$PWD/nix-calls"
+    : > "$NIX_CALLS"
+    PATH="${mockUpdateNix}/bin:${pkgs.jq}/bin:${pkgs.bash}/bin:${pkgs.coreutils}/bin:${pkgs.gnused}/bin:${pkgs.gnugrep}/bin" \
+      ${pkgs.bash}/bin/bash ./scripts/update-codex.sh --version 9.9.9
+    grep -Fq 'version = "9.9.9";' packages/codex/package.nix
+    [ "$(grep -c '^store prefetch-file --json ' "$NIX_CALLS")" -eq 4 ]
+    ! grep -Eq '^build |^run ' "$NIX_CALLS"
+    touch "$out"
+  '';
 
   generated-rtk = pkgs.runCommand "codex-profile-generated-rtk" {} ''
     agents='${generated.config.home.file.".codex/AGENTS.md".source}'

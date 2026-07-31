@@ -37,6 +37,7 @@ jobs:
             ".#checks.$system.package-opt-in" \
             ".#checks.$system.self-package-module" \
             ".#checks.$system.update-script-latest-selection" \
+            ".#checks.$system.updater-mutation-only" \
             ".#checks.$system.generated-rtk" \
             ".#checks.$system.lint"
 

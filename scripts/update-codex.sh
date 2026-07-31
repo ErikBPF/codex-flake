@@ -134,9 +134,6 @@ main() {
     [ -n "$hash" ] && [ "$hash" != "null" ] || die "prefetch failed for $sys"
     sed -i "s|^    ${sys} = \"sha256-[^\"]*\";|    ${sys} = \"${hash}\";|" packages/codex/package.nix
   done
-  nix build .#codex --no-link --print-build-logs
-  nix run .#codex -- --version | grep -F "$latest"
-
   trap - EXIT
   rm -rf "$TMPDIR_UPDATE"
   git diff --stat packages/codex/package.nix 2>/dev/null || true
