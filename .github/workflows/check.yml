@@ -58,7 +58,9 @@ jobs:
         run: |
           set -euo pipefail
           system="$(nix eval --raw --impure --expr builtins.currentSystem)"
-          nix build --print-build-logs ".#checks.$system.codex-version"
+          nix build --print-build-logs \
+            ".#checks.$system.codex-version" \
+            ".#checks.$system.codex-runtime-companions"
 
   notify-ci:
     needs: [check, package-build, flakehub-publish, flakehub-verify]

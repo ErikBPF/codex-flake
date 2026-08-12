@@ -4,10 +4,10 @@ set -euo pipefail
 readonly UPSTREAM_REPO="openai/codex"
 readonly UPSTREAM_RELEASES_API="https://api.github.com/repos/${UPSTREAM_REPO}/releases?per_page=50"
 readonly REQUIRED_ASSETS='[
-  "codex-x86_64-unknown-linux-musl.tar.gz",
-  "codex-aarch64-unknown-linux-musl.tar.gz",
-  "codex-x86_64-apple-darwin.tar.gz",
-  "codex-aarch64-apple-darwin.tar.gz"
+  "codex-package-x86_64-unknown-linux-musl.tar.gz",
+  "codex-package-aarch64-unknown-linux-musl.tar.gz",
+  "codex-package-x86_64-apple-darwin.tar.gz",
+  "codex-package-aarch64-apple-darwin.tar.gz"
 ]'
 
 log() { printf '[codex-update] %s\n' "$*" >&2; }
@@ -119,7 +119,7 @@ main() {
 
   sed -i "s/^  version = \"[^\"]*\";/  version = \"${latest}\";/" packages/codex/package.nix
 
-  # Prefetch each platform's official release tarball and patch its hash.
+  # Prefetch each platform's official package bundle and patch its hash.
   for entry in \
     "x86_64-linux x86_64-unknown-linux-musl" \
     "aarch64-linux aarch64-unknown-linux-musl" \
@@ -128,7 +128,7 @@ main() {
     set -- $entry
     sys="$1"
     triple="$2"
-    asset_url="https://github.com/${UPSTREAM_REPO}/releases/download/rust-v${latest}/codex-${triple}.tar.gz"
+    asset_url="https://github.com/${UPSTREAM_REPO}/releases/download/rust-v${latest}/codex-package-${triple}.tar.gz"
     log "prefetching $sys ($triple)..."
     hash="$(nix store prefetch-file --json "$asset_url" | jq -r .hash)"
     [ -n "$hash" ] && [ "$hash" != "null" ] || die "prefetch failed for $sys"

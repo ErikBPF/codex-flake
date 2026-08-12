@@ -146,7 +146,7 @@
         "published_at": "2029-01-01T00:00:00Z",
         "created_at": "2029-01-01T00:00:00Z",
         "assets": [
-          {"name": "codex-x86_64-unknown-linux-musl.tar.gz"}
+          {"name": "codex-package-x86_64-unknown-linux-musl.tar.gz"}
         ]
       },
       {
@@ -157,10 +157,10 @@
         "published_at": "2028-01-01T00:00:00Z",
         "created_at": "2028-01-01T00:00:00Z",
         "assets": [
-          {"name": "codex-x86_64-unknown-linux-musl.tar.gz"},
-          {"name": "codex-aarch64-unknown-linux-musl.tar.gz"},
-          {"name": "codex-x86_64-apple-darwin.tar.gz"},
-          {"name": "codex-aarch64-apple-darwin.tar.gz"}
+          {"name": "codex-package-x86_64-unknown-linux-musl.tar.gz"},
+          {"name": "codex-package-aarch64-unknown-linux-musl.tar.gz"},
+          {"name": "codex-package-x86_64-apple-darwin.tar.gz"},
+          {"name": "codex-package-aarch64-apple-darwin.tar.gz"}
         ]
       }
     ]
@@ -264,6 +264,11 @@ in {
     touch "$out"
   '';
 
+  codex-runtime-companions = pkgs.runCommand "codex-runtime-companions" {} ''
+    test -x ${self.packages.${system}.codex}/bin/codex-code-mode-host
+    touch "$out"
+  '';
+
   update-script-latest-selection =
     pkgs.runCommand "codex-update-script-latest-selection" {
       nativeBuildInputs = [pkgs.jq];
@@ -291,6 +296,10 @@ in {
       ${pkgs.bash}/bin/bash ./scripts/update-codex.sh --version 9.9.9
     grep -Fq 'version = "9.9.9";' packages/codex/package.nix
     [ "$(grep -c '^store prefetch-file --json ' "$NIX_CALLS")" -eq 4 ]
+    grep -Fq 'codex-package-x86_64-unknown-linux-musl.tar.gz' "$NIX_CALLS"
+    grep -Fq 'codex-package-aarch64-unknown-linux-musl.tar.gz' "$NIX_CALLS"
+    grep -Fq 'codex-package-x86_64-apple-darwin.tar.gz' "$NIX_CALLS"
+    grep -Fq 'codex-package-aarch64-apple-darwin.tar.gz' "$NIX_CALLS"
     ! grep -Eq '^build |^run ' "$NIX_CALLS"
     touch "$out"
   '';
