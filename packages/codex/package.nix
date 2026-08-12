@@ -7,20 +7,17 @@
   lib,
   stdenvNoCC,
   fetchurl,
-  bubblewrap,
   installShellFiles,
-  makeBinaryWrapper,
-  ripgrep,
   versionCheckHook,
   installShellCompletions ? stdenvNoCC.buildPlatform.canExecute stdenvNoCC.hostPlatform,
 }: let
   version = "0.147.0";
 
   hashes = {
-    x86_64-linux = "sha256-Akbi53ODTgfw+1JJ7W660S5FkeYI+Me7l91qlpBUTDY=";
-    aarch64-linux = "sha256-62d8gPZmsauLSx0IO2bo1hSxKB2WC7b5/Yypj1izi5A=";
-    x86_64-darwin = "sha256-NueC9x2BZMw3wricZJSPIYDpovhFayfmYNp1vGtVdOI=";
-    aarch64-darwin = "sha256-dZhLgfkqcbDA9LO1ytgOXFcXfk2Mi0seE9twOyDcQ1g=";
+    x86_64-linux = "sha256-vXWNU9VuQdxl4EX0WJ33mgOO0ZegEa3LUqJY5q1kz9o=";
+    aarch64-linux = "sha256-icv3m9Wub5xY2kfoB58xHIQhk1DJxDwHDULz6bKoFAE=";
+    x86_64-darwin = "sha256-2R5ZEz2vkjvEXXbj2kr4rp72KgIx2hhIjaDNVztunWM=";
+    aarch64-darwin = "sha256-F7KYTrIrYH49DCVyglL8kPUQ5Ha605ptn0XNsapoVDI=";
   };
 
   triples = {
@@ -38,17 +35,15 @@ in
     inherit version;
 
     src = fetchurl {
-      url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-${triple}.tar.gz";
+      url = "https://github.com/openai/codex/releases/download/rust-v${version}/codex-package-${triple}.tar.gz";
       hash = hashes.${system} or (throw "codex: no hash for ${system}");
     };
 
-    # The tarball contains a single file: the codex-<triple> binary.
+    # Keep the upstream package layout: Codex discovers its host and resources
+    # relative to codex-package.json.
     sourceRoot = ".";
 
-    nativeBuildInputs = [
-      installShellFiles
-      makeBinaryWrapper
-    ];
+    nativeBuildInputs = [installShellFiles];
 
     dontConfigure = true;
     dontBuild = true;
@@ -58,10 +53,8 @@ in
     installPhase = ''
       runHook preInstall
 
-      install -Dm755 codex-${triple} $out/bin/codex
-      wrapProgram $out/bin/codex --prefix PATH : ${
-        lib.makeBinPath ([ripgrep] ++ lib.optionals stdenvNoCC.hostPlatform.isLinux [bubblewrap])
-      }
+      mkdir -p "$out"
+      cp -R bin codex-package.json codex-path codex-resources "$out/"
 
       runHook postInstall
     '';
