@@ -215,6 +215,9 @@ in {
     grep -q "RTK - Rust Token Killer (Codex CLI)" "$agents"
     grep -q "Prefer \`rtk\` for read-only or high-output shell commands" "$agents"
     grep -q "Use caveman full style" "$agents"
+    grep -q "Keep this style active for every response" "$agents"
+    grep -q "Never drop negations" "$agents"
+    grep -q "No tool-call narration" "$agents"
     grep -q "RTK - Rust Token Killer (Codex CLI)" "$rtk"
 
     touch "$out"
