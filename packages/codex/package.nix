@@ -11,13 +11,13 @@
   versionCheckHook,
   installShellCompletions ? stdenvNoCC.buildPlatform.canExecute stdenvNoCC.hostPlatform,
 }: let
-  version = "0.159.3";
+  version = "0.160.0";
 
   hashes = {
-    x86_64-linux = "sha256-OTDzGsX8qGHqPkROJoPyYRkNlrY/uljgpAqHkXQ2nN8=";
-    aarch64-linux = "sha256-ILfWc88rZLbGII+k/aBv652sBXLamYcpS0jN4dq50AE=";
-    x86_64-darwin = "sha256-/jCWpitdg5XdJav5/nkzTPE8FSC4JdI2zStB63WmMgE=";
-    aarch64-darwin = "sha256-+tV6VoHKvO8h0yKvWuyTiXXPtxG18l1M5JB+ZWFhbQc=";
+    x86_64-linux = "sha256-T8xHq1f1L/dTY5Uah2EUbNEMgoi9hv7UVIfbsgSha3E=";
+    aarch64-linux = "sha256-fw/kL/Iuz6Oke8SjT1sixCGLQxpOwKulHH2YKZ8HkAw=";
+    x86_64-darwin = "sha256-TVBRSy2KzYHKjP7lW2Z7PcT3aBtlvzKZ/waxGgZPiGE=";
+    aarch64-darwin = "sha256-AH30G2B9u8jSBLl0bOf+0tTObIE/RMMs7uVBdcp5ZSU=";
   };
 
   triples = {
